@@ -427,10 +427,18 @@ th {
         max-width: none;
         max-height: none;
         border-radius: 0;
-        padding: 80px 10px 20px;
+        padding: 110px 10px 20px; /* Further increased top padding */
         overflow-y: auto;
         overflow-x: hidden; /* Lock horizontal sway */
         box-sizing: border-box;
+    }
+
+    #admin-modal .close-modal-btn {
+        top: 20px;
+        right: 10px;
+        padding: 8px 15px;
+        font-size: 14px;
+        width: auto;
     }
 
     .admin-tabs {
