@@ -427,7 +427,7 @@ th {
         max-width: none;
         max-height: none;
         border-radius: 0;
-        padding: 60px 10px 20px;
+        padding: 80px 10px 20px;
         overflow-y: auto;
         overflow-x: hidden; /* Lock horizontal sway */
         box-sizing: border-box;
