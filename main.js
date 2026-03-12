@@ -32,32 +32,58 @@ if (!currentConfig.gasUrl) {
 document.addEventListener('DOMContentLoaded', async () => {
     await syncConfigFromGAS();
     renderForm();
+    
+    // Start background polling (every 60 seconds)
+    setInterval(() => {
+        syncConfigFromGAS(true).then(changed => {
+            if (changed) {
+                renderForm();
+                if (document.getElementById('admin-modal').style.display === 'flex') {
+                    updateHistoryListUI();
+                    populateConfigInputs();
+                    populateFilterOptions();
+                }
+            }
+        });
+    }, 60000);
 });
 
-async function syncConfigFromGAS() {
+async function syncConfigFromGAS(silent = false) {
     if (!currentConfig.gasUrl) return;
+    
     updateSyncStatus('同期中...', '#666');
-    showLoading();
+    if (!silent) showLoading();
+    
     try {
         const cacheBuster = `&_cb=${Date.now()}`;
         const response = await fetch(`${currentConfig.gasUrl}?action=getConfig${cacheBuster}`);
         const remoteConfig = await response.json();
         
         if (remoteConfig && typeof remoteConfig === 'object' && remoteConfig.title) {
-            currentConfig = remoteConfig;
-            localStorage.setItem('kyudo_config', JSON.stringify(currentConfig));
+            // Check if anything has changed
+            const configString = JSON.stringify(currentConfig);
+            const remoteString = JSON.stringify(remoteConfig);
+            
+            if (configString !== remoteString) {
+                currentConfig = remoteConfig;
+                localStorage.setItem('kyudo_config', JSON.stringify(currentConfig));
+                updateSyncStatus('最新の状態です (更新あり)', '#2e7d32');
+                if (!silent) hideLoading();
+                return true; // Config changed
+            }
+            
             updateSyncStatus('最新の状態です', '#2e7d32');
-            hideLoading();
-            return true;
+            if (!silent) hideLoading();
+            return false;
         } else {
             updateSyncStatus('同期済み（クラウド設定なし）', '#666');
-            hideLoading();
-            return true; 
+            if (!silent) hideLoading();
+            return false; 
         }
     } catch (err) {
         console.error('Failed to sync config:', err);
         updateSyncStatus('同期エラー', '#f44336');
-        hideLoading();
+        if (!silent) hideLoading();
         return false;
     }
 }
@@ -472,6 +498,7 @@ function saveConfig() {
     const newGrades = document.getElementById('config-grades').value.split(',').map(s => s.trim()).filter(s => s);
     const newGenders = document.getElementById('config-genders').value.split(',').map(s => s.trim()).filter(s => s);
     const newAttendance = document.getElementById('config-attendance').value.split(',').map(s => s.trim()).filter(s => s);
+    const gasUrl = document.getElementById('config-gas-url').value.trim();
 
     if (!newTitle || newGrades.length === 0 || newGenders.length === 0 || newAttendance.length === 0) {
         alert('全ての項目を正しく入力してください。');
@@ -483,6 +510,7 @@ function saveConfig() {
     currentConfig.fields.find(f => f.id === 'grade').options = newGrades;
     currentConfig.fields.find(f => f.id === 'gender').options = newGenders;
     currentConfig.fields.find(f => f.id === 'attendance').options = newAttendance;
+    currentConfig.gasUrl = gasUrl;
 
     // Update history list
     let history = JSON.parse(localStorage.getItem('kyudo_titles_list') || '[]');
