@@ -427,29 +427,35 @@ th {
         max-width: none;
         max-height: none;
         border-radius: 0;
-        padding: 60px 15px 20px;
+        padding: 60px 10px 20px;
         overflow-y: auto;
+        overflow-x: hidden; /* Lock horizontal sway */
+        box-sizing: border-box;
     }
 
     .admin-tabs {
         flex-direction: row;
         gap: 5px;
         margin-bottom: 20px;
+        width: 100%;
     }
 
     .tab-btn {
         flex: 1;
-        padding: 10px 5px;
-        font-size: 0.9rem;
+        padding: 10px 2px;
+        font-size: 0.8rem;
     }
 
     .history-container {
         flex-direction: column;
         align-items: stretch;
+        width: 100%;
+        box-sizing: border-box;
     }
 
     .history-container select {
         width: 100%;
+        max-width: 100%;
     }
 
     #set-active-btn {
@@ -461,28 +467,36 @@ th {
     .filter-grid {
         grid-template-columns: 1fr;
         gap: 10px;
+        width: 100%;
     }
 
     .config-grid {
         grid-template-columns: 1fr;
+        width: 100%;
     }
 
     .table-container {
-        margin: 0 -15px;
-        width: calc(100% + 30px);
-        overflow-x: auto;
+        margin: 0; /* Remove negative margins causing sway */
+        width: 100%;
+        overflow-x: hidden; /* Prevent table from scrolling horizontally */
+        box-sizing: border-box;
     }
 
     table {
         width: 100%;
-        min-width: auto;
-        font-size: 0.75rem;
-        table-layout: auto; /* Let it shrink as much as possible */
+        max-width: 100%;
+        min-width: 100%; /* Force it to match container */
+        font-size: 0.7rem;
+        table-layout: fixed; /* Force rigid width control */
+        border-collapse: collapse;
     }
 
     td, th {
-        padding: 6px 2px;
-        word-break: break-all;
+        padding: 5px 2px;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        white-space: normal; /* Allow text to wrap to next line instead of pushing width */
         line-height: 1.2;
+        border: 1px solid #eee;
     }
 }
