@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>弓道部行事出席管理</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Outfit:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Form View -->
+        <div id="form-view" class="card">
+            <h1 id="app-title">弓道部 行事出席確認</h1>
+            <form id="attendance-form">
+                <div id="dynamic-fields">
+                    <!-- Dynamic fields will be injected here -->
+                </div>
+                <button type="submit">送信する</button>
+            </form>
+
+            <div id="success-message" class="success-message">
+                <p id="success-text">回答を送信しました。ありがとうございました。</p>
+                <button onclick="location.reload()" style="margin-top: 15px; background: #666;">別の回答を送信</button>
+            </div>
+        </div>
+
+        <!-- Admin Access Button -->
+        <button class="admin-btn" id="open-admin">データ管理 (管理者専用)</button>
+    </div>
+
+    <!-- Admin Modal -->
+    <div id="admin-modal" class="modal">
+        <div class="modal-content">
+            <button class="close-modal-btn" id="close-modal"><span>&times;</span> 閉じる</button>
+            
+            <div class="admin-tabs">
+                <button class="tab-btn active" onclick="showTab('data')">回答データ</button>
+                <button class="tab-btn" onclick="showTab('config')">フォーム設定</button>
+            </div>
+
+            <div id="tab-data" class="tab-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h2>出席データ一覧</h2>
+                    <div class="history-container">
+                        <label style="font-size: 12px; color: #666; display: block; margin-bottom: 2px;">過去のアンケートを選択</label>
+                        <select id="survey-history" onchange="switchSurveyView()" style="padding: 8px; border-radius: 4px; border: 1px solid var(--border-color); font-size: 14px; min-width: 200px;">
+                            <!-- History options will be injected here -->
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Filter Section -->
+                <div class="filter-section">
+                    <div class="filter-group">
+                        <label>名前検索</label>
+                        <input type="text" id="filter-name" placeholder="名前で検索..." oninput="renderTable()">
+                    </div>
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label>学年</label>
+                            <select id="filter-grade" onchange="renderTable()">
+                                <option value="">すべて</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>性別</label>
+                            <select id="filter-gender" onchange="renderTable()">
+                                <option value="">すべて</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>回答</label>
+                            <select id="filter-response" onchange="renderTable()">
+                                <option value="">すべて</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="admin-table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>日時</th>
+                                <th>氏名</th>
+                                <th>学年</th>
+                                <th>性別</th>
+                                <th>出席</th>
+                            </tr>
+                        </thead>
+                        <tbody id="attendance-data-body">
+                            <!-- Data will be injected here -->
+                        </tbody>
+                    </table>
+                </div>
+                <button onclick="clearData()" style="margin-top: 20px; background: #c43e3e;">データをリセット</button>
+            </div>
+
+            <div id="tab-config" class="tab-content" style="display: none;">
+                <h2>フォーム設定</h2>
+                <div class="config-group">
+                    <label>タイトル</label>
+                    <input type="text" id="config-title">
+                </div>
+                <div class="config-group">
+                    <label>学年の選択肢 (カンマ区切り)</label>
+                    <input type="text" id="config-grades">
+                </div>
+                <div class="config-group">
+                    <label>性別の選択肢 (カンマ区切り)</label>
+                    <input type="text" id="config-genders">
+                </div>
+                <div class="config-group">
+                    <label>参加・不参加の選択肢 (カンマ区切り)</label>
+                    <input type="text" id="config-attendance">
+                </div>
+                <button onclick="saveConfig()" style="margin-top: 10px;">設定を保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="main.js"></script>
+</body>
+</html>
