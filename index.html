@@ -23,6 +23,7 @@
 
             <div id="success-message" class="success-message">
                 <p id="success-text">回答を送信しました。ありがとうございました。</p>
+                <p id="submission-sync-status" style="font-size: 12px; margin-top: 5px; color: #666;"></p>
                 <button onclick="location.reload()" style="margin-top: 15px; background: #666;">別の回答を送信</button>
             </div>
         </div>
@@ -39,6 +40,12 @@
             <div class="admin-tabs">
                 <button class="tab-btn active" onclick="showTab('data')">回答データ</button>
                 <button class="tab-btn" onclick="showTab('config')">フォーム設定</button>
+            </div>
+
+            <!-- Sync Status Indicator -->
+            <div id="sync-status-bar" style="background: #f0f0f0; padding: 5px 15px; font-size: 11px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd;">
+                <span id="sync-message">同期ステータス: 待機中</span>
+                <button onclick="manualSync()" id="sync-now-btn" style="background: #666; font-size: 10px; padding: 2px 8px; width: auto; height: auto; margin:0;">今すぐ同期</button>
             </div>
 
             <div id="tab-data" class="tab-content">

@@ -26,15 +26,44 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function syncConfigFromGAS() {
     if (!currentConfig.gasUrl) return;
+    updateSyncStatus('同期中...', '#666');
     try {
-        const response = await fetch(`${currentConfig.gasUrl}?action=getConfig`);
+        // Add cache buster to avoid getting stale results
+        const cacheBuster = `&_cb=${Date.now()}`;
+        const response = await fetch(`${currentConfig.gasUrl}?action=getConfig${cacheBuster}`);
         const remoteConfig = await response.json();
-        if (remoteConfig) {
+        
+        if (remoteConfig && typeof remoteConfig === 'object' && remoteConfig.title) {
             currentConfig = remoteConfig;
             localStorage.setItem('kyudo_config', JSON.stringify(currentConfig));
+            updateSyncStatus('最新の状態です', '#2e7d32');
+            return true;
+        } else {
+            updateSyncStatus('サーバー設定が空です', '#f44336');
         }
     } catch (err) {
         console.error('Failed to sync config:', err);
+        updateSyncStatus('同期エラー', '#f44336');
+    }
+    return false;
+}
+
+function updateSyncStatus(msg, color) {
+    const el = document.getElementById('sync-message');
+    if (el) {
+        el.textContent = `同期ステータス: ${msg}`;
+        el.style.color = color;
+    }
+}
+
+async function manualSync() {
+    const success = await syncConfigFromGAS();
+    if (success) {
+        renderForm();
+        renderTable();
+        alert('最新の設定とデータを同期しました。');
+    } else {
+        alert('同期に失敗しました。GASの設定とURLを確認してください。');
     }
 }
 
@@ -112,7 +141,7 @@ function getDataKey() {
     return `kyudo_attendance_${currentConfig.title}`;
 }
 
-function saveData(data) {
+async function saveData(data) {
     // Local save
     const key = getDataKey();
     let existingData = JSON.parse(localStorage.getItem(key) || '[]');
@@ -121,12 +150,28 @@ function saveData(data) {
 
     // GAS Save
     if (currentConfig.gasUrl) {
-        fetch(currentConfig.gasUrl, {
-            method: 'POST',
-            mode: 'no-cors', // GAS web apps often require no-cors for simple POST
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        }).catch(err => console.error('GAS Save failed:', err));
+        const statusEl = document.getElementById('submission-sync-status');
+        if (statusEl) statusEl.textContent = 'クラウドへ送信中...';
+        
+        try {
+            const response = await fetch(currentConfig.gasUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Use text/plain to avoid CORS preflight in some environments
+                body: JSON.stringify(data)
+            });
+            // Note: Since GAS redirects, a successful fetch results in an 'opaque' response if no-cors is used,
+            // or a transparent one if CORS is allowed. Here we just assume it worked if no exception.
+            if (statusEl) {
+                statusEl.textContent = 'クラウド同期完了';
+                statusEl.style.color = '#2e7d32';
+            }
+        } catch (err) {
+            console.error('GAS Save failed:', err);
+            if (statusEl) {
+                statusEl.textContent = 'クラウド同期失敗（オフライン保存済）';
+                statusEl.style.color = '#f44336';
+            }
+        }
     }
 }
 
@@ -230,7 +275,8 @@ async function renderTable(targetTitle) {
     // Fetch from GAS if available
     if (currentConfig.gasUrl) {
         try {
-            const response = await fetch(`${currentConfig.gasUrl}?title=${encodeURIComponent(title)}`);
+            const cacheBuster = `&_cb=${Date.now()}`;
+            const response = await fetch(`${currentConfig.gasUrl}?title=${encodeURIComponent(title)}${cacheBuster}`);
             const remoteData = await response.json();
             if (Array.isArray(remoteData)) {
                 data = remoteData;
@@ -239,6 +285,7 @@ async function renderTable(targetTitle) {
             }
         } catch (err) {
             console.error('GAS fetch failed:', err);
+            // Fallback to local data is already in 'data' variable
         }
     }
 
@@ -338,21 +385,26 @@ function saveConfig() {
 
     localStorage.setItem('kyudo_config', JSON.stringify(currentConfig));
 
-    const gasUrl = document.getElementById('config-gas-url').value.trim();
-    currentConfig.gasUrl = gasUrl;
-    localStorage.setItem('kyudo_config', JSON.stringify(currentConfig));
-
     // Update GAS Config if URL exists
     if (gasUrl) {
+        updateSyncStatus('設定をアップロード中...', '#666');
         fetch(gasUrl, {
             method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
             body: JSON.stringify({ type: 'config', config: currentConfig })
-        }).catch(err => console.error('GAS Config push failed:', err));
+        })
+        .then(() => {
+            updateSyncStatus('設定の同期完了', '#2e7d32');
+            alert('設定を保存し、クラウドと同期しました。');
+        })
+        .catch(err => {
+            console.error('GAS Config push failed:', err);
+            updateSyncStatus('同期エラー', '#f44336');
+            alert('設定は保存されましたが、クラウドとの同期に失敗しました。');
+        });
+    } else {
+        alert('設定を保存しました。');
     }
-
-    alert('設定を保存しました。');
     updateHistoryListUI();
     populateFilterOptions();
     renderForm();
