@@ -130,10 +130,14 @@
                 <div class="config-group">
                     <label>【共有設定】Google Apps Script URL</label>
                     <p style="font-size: 12px; color: #666; margin-bottom: 8px;">
-                        GitHub等で公開し、複数の端末でデータを共有する場合に設定します。
+                        GitHub等で公開し、複数の端末でデータを共有する場合に設定します。<br>
                         空欄の場合はお使いのブラウザ内（のみ）に保存されます。
                     </p>
-                    <input type="text" id="config-gas-url" placeholder="https://script.google.com/macros/s/.../exec">
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="config-gas-url" placeholder="https://script.google.com/macros/s/.../exec" style="flex: 1;">
+                        <button onclick="testConnection()" style="width: auto; padding: 0 15px; background: #666; font-size: 12px;">接続テスト</button>
+                    </div>
+                    <p id="connection-test-result" style="font-size: 11px; margin-top: 5px; min-height: 15px;"></p>
                 </div>
                 
                 <button onclick="saveConfig()" style="margin-top: 10px;">設定を保存</button>

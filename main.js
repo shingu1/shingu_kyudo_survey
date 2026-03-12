@@ -39,13 +39,44 @@ async function syncConfigFromGAS() {
             updateSyncStatus('最新の状態です', '#2e7d32');
             return true;
         } else {
-            updateSyncStatus('サーバー設定が空です', '#f44336');
+            // Not necessarily a failure if it's the first time
+            updateSyncStatus('同期済み（クラウド設定なし）', '#666');
+            return true; 
         }
     } catch (err) {
         console.error('Failed to sync config:', err);
         updateSyncStatus('同期エラー', '#f44336');
+        return false;
     }
-    return false;
+}
+
+async function testConnection() {
+    const url = document.getElementById('config-gas-url').value.trim();
+    const resultEl = document.getElementById('connection-test-result');
+    if (!url) {
+        resultEl.textContent = '❌ URLを入力してください';
+        resultEl.style.color = '#f44336';
+        return;
+    }
+
+    resultEl.textContent = '⏳ 接続テスト中...';
+    resultEl.style.color = '#666';
+
+    try {
+        const response = await fetch(`${url}?action=test`);
+        const data = await response.json();
+        if (data && data.success) {
+            resultEl.textContent = '✅ 接続成功！';
+            resultEl.style.color = '#2e7d32';
+        } else {
+            resultEl.textContent = '❌ 応答が不正です';
+            resultEl.style.color = '#f44336';
+        }
+    } catch (err) {
+        console.error('Connection test failed:', err);
+        resultEl.textContent = `❌ 接続失敗: ${err.message}`;
+        resultEl.style.color = '#f44336';
+    }
 }
 
 function updateSyncStatus(msg, color) {
