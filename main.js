@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function syncConfigFromGAS(silent = false) {
     if (!currentConfig.gasUrl) return;
     
-    updateSyncStatus('同期中...', '#666');
+    updateSyncStatus('読み込み中...', '#666');
     if (!silent) showLoading();
     
     try {
@@ -147,10 +147,19 @@ function renderForm() {
     const titleEl = document.getElementById('app-title');
     const fieldsContainer = document.getElementById('dynamic-fields');
     const successText = document.getElementById('success-text');
+    const form = document.getElementById('attendance-form');
 
     titleEl.textContent = currentConfig.title;
     successText.textContent = currentConfig.successMessage;
     fieldsContainer.innerHTML = '';
+
+    if (currentConfig.title === '現在アンケートはありません。') {
+        fieldsContainer.innerHTML = '<div style="text-align:center; padding: 40px 0; color: #666; font-size: 1.1rem;">現在実施中のアンケートはありません。</div>';
+        form.querySelector('button[type="submit"]').style.display = 'none';
+        return;
+    }
+
+    form.querySelector('button[type="submit"]').style.display = 'block';
 
     currentConfig.fields.forEach(field => {
         const group = document.createElement('div');
@@ -304,6 +313,12 @@ async function updateHistoryListUI() {
         history.push(currentConfig.title);
     }
 
+    // Add "No Survey" option if not present
+    const noSurveyOption = '現在アンケートはありません。';
+    if (!history.includes(noSurveyOption)) {
+        history.unshift(noSurveyOption);
+    }
+
     select.innerHTML = '';
     history.forEach(title => {
         const opt = document.createElement('option');
@@ -353,7 +368,7 @@ async function setActiveSurvey() {
         localStorage.setItem('kyudo_config', JSON.stringify(currentConfig));
         
         if (currentConfig.gasUrl) {
-            updateSyncStatus('クラウド設定更新中...', '#666');
+            updateSyncStatus('読み込み中...', '#666');
             await fetch(currentConfig.gasUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -541,7 +556,7 @@ function saveConfig() {
 
     // Update GAS Config if URL exists
     if (gasUrl) {
-        updateSyncStatus('設定をアップロード中...', '#666');
+        updateSyncStatus('読み込み中...', '#666');
         showLoading();
         fetch(gasUrl, {
             method: 'POST',
