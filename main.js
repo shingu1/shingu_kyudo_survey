@@ -133,9 +133,10 @@ function updateSyncStatus(msg, color) {
 }
 
 async function manualSync() {
-    // Manual sync logic is replaced by background polling
+    // Manual sync logic removed as background polling is now active
     await syncConfigFromGAS();
     renderForm();
+    await updateHistoryListUI();
     renderTable();
 }
 
@@ -204,14 +205,13 @@ document.getElementById('attendance-form').addEventListener('submit', function(e
 
     const formData = new FormData(this);
     const submission = {
-        timestamp: formatDate(new Date()),
         items: {},
         title: currentConfig.title
     };
 
     currentConfig.fields.forEach(field => {
         submission.items[field.label] = formData.get(field.id);
-        submission[field.label] = formData.get(field.id); // Keep compatibility with local storage format
+        submission[field.label] = formData.get(field.id);
     });
 
     saveData(submission);
@@ -241,9 +241,22 @@ async function saveData(data) {
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Use text/plain to avoid CORS preflight in some environments
                 body: JSON.stringify(data)
             });
-            if (statusEl) {
-                statusEl.textContent = 'クラウド同期完了';
-                statusEl.style.color = '#2e7d32';
+            const result = await response.json();
+            if (result && result.success) {
+                if (statusEl) {
+                    statusEl.textContent = 'クラウド同期完了';
+                    statusEl.style.color = '#2e7d32';
+                }
+                // Update local storage with the server-side timestamp
+                if (result.timestamp) {
+                    const key = getDataKey();
+                    let existingData = JSON.parse(localStorage.getItem(key) || '[]');
+                    const lastIndex = existingData.length - 1;
+                    if (lastIndex >= 0) {
+                        existingData[lastIndex].timestamp = result.timestamp;
+                        localStorage.setItem(key, JSON.stringify(existingData));
+                    }
+                }
             }
         } catch (err) {
             console.error('GAS Save failed:', err);
@@ -260,20 +273,6 @@ async function saveData(data) {
 function showSuccess() {
     document.getElementById('attendance-form').style.display = 'none';
     document.getElementById('success-message').style.display = 'flex';
-}
-
-// Utility Functions
-function showLoading() { document.getElementById('loading-overlay').style.display = 'flex'; }
-function hideLoading() { document.getElementById('loading-overlay').style.display = 'none'; }
-
-function formatDate(date) {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    const h = String(date.getHours()).padStart(2, '0');
-    const i = String(date.getMinutes()).padStart(2, '0');
-    const s = String(date.getSeconds()).padStart(2, '0');
-    return `${y}/${m}/${d} ${h}:${i}:${s}`;
 }
 
 // Admin Logic
@@ -294,7 +293,7 @@ async function openAdminModal() {
     await renderTable();
     populateConfigInputs();
     hideLoading();
-    modal.style.display = 'block';
+    modal.style.display = 'flex';
 }
 
 async function updateHistoryListUI() {
@@ -503,21 +502,11 @@ async function renderTable(targetTitle) {
     tbody.innerHTML = '';
     filteredData.reverse().forEach(item => {
         const row = document.createElement('tr');
-        
-        // Timestamp cell
-        const timeTd = document.createElement('td');
-        timeTd.setAttribute('data-label', '日時');
-        timeTd.textContent = item.timestamp;
-        row.appendChild(timeTd);
-
-        // Dynamic fields cells
+        let cols = `<td>${item.timestamp}</td>`;
         currentConfig.fields.forEach(field => {
-            const td = document.createElement('td');
-            td.setAttribute('data-label', field.label);
-            td.textContent = item[field.label] || '-';
-            row.appendChild(td);
+            cols += `<td>${item[field.label] || '-'}</td>`;
         });
-        
+        row.innerHTML = cols;
         tbody.appendChild(row);
     });
 
@@ -527,26 +516,33 @@ async function renderTable(targetTitle) {
 }
 
 async function clearData() {
-    if (confirm(`「${currentConfig.title}」のデータを全て（クラウド上も含め）削除してもよろしいですか？`)) {
+    const title = currentConfig.title;
+    if (confirm(`「${title}」のデータを全て削除（リセット）してもよろしいですか？\nこの操作はクラウド上のデータも削除されます。`)) {
         showLoading();
         try {
             // Local clear
             localStorage.removeItem(getDataKey());
             
-            // GAS clear
+            // Cloud clear
             if (currentConfig.gasUrl) {
-                await fetch(currentConfig.gasUrl, {
+                const response = await fetch(currentConfig.gasUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify({ type: 'clearData', title: currentConfig.title })
+                    body: JSON.stringify({ type: 'clearSheetData', title: title })
                 });
+                const result = await response.json();
+                if (result.success) {
+                    alert('データをリセットしました。');
+                } else {
+                    alert('ローカルデータは削除されましたが、クラウドのリセットに失敗しました。');
+                }
+            } else {
+                alert('データをリセットしました。');
             }
-            
             renderTable();
-            alert('データをクリアしました。');
         } catch (err) {
-            console.error('Failed to clear data:', err);
-            alert('データのクリアに失敗しました。');
+            console.error('Clear data failed:', err);
+            alert('リセット中にエラーが発生しました。');
         } finally {
             hideLoading();
         }
