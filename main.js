@@ -492,7 +492,7 @@ async function renderTable(targetTitle) {
     });
     
     // Dynamically update headers based on current config labels
-    theadRow.innerHTML = '<th>日時</th>';
+    theadRow.innerHTML = '';
     currentConfig.fields.forEach(field => {
         const th = document.createElement('th');
         th.textContent = field.label;
@@ -502,7 +502,7 @@ async function renderTable(targetTitle) {
     tbody.innerHTML = '';
     filteredData.reverse().forEach(item => {
         const row = document.createElement('tr');
-        let cols = `<td>${item.timestamp}</td>`;
+        let cols = '';
         currentConfig.fields.forEach(field => {
             cols += `<td>${item[field.label] || '-'}</td>`;
         });
