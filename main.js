@@ -7,15 +7,36 @@ const DEFAULT_CONFIG = {
         { id: 'gender', label: '性別', type: 'radio', options: ['男子', '女子'], required: true },
         { id: 'attendance', label: '参加・不参加', type: 'radio', options: ['参加', '不参加'], required: true }
     ],
-    successMessage: '回答を送信しました。ありがとうございました。'
+    successMessage: '回答を送信しました。ありがとうございました。',
+    gasUrl: 'https://script.google.com/macros/s/AKfycbyXFOTQ1FuZcYiqM6_ozecbY-y3elTbcO74zkNKiPHG8Jh_pUIyFYKcC1Ndq3TNbpqmaw/exec' // URL for Google Apps Script synchronization
 };
 
 let currentConfig = JSON.parse(localStorage.getItem('kyudo_config')) || DEFAULT_CONFIG;
 
+// Force inject the specific URL if none exists or if it's currently using the placeholder
+if (!currentConfig.gasUrl) {
+    currentConfig.gasUrl = DEFAULT_CONFIG.gasUrl;
+}
+
 // Initial Render
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    await syncConfigFromGAS();
     renderForm();
 });
+
+async function syncConfigFromGAS() {
+    if (!currentConfig.gasUrl) return;
+    try {
+        const response = await fetch(`${currentConfig.gasUrl}?action=getConfig`);
+        const remoteConfig = await response.json();
+        if (remoteConfig) {
+            currentConfig = remoteConfig;
+            localStorage.setItem('kyudo_config', JSON.stringify(currentConfig));
+        }
+    } catch (err) {
+        console.error('Failed to sync config:', err);
+    }
+}
 
 function renderForm() {
     const titleEl = document.getElementById('app-title');
@@ -73,11 +94,14 @@ document.getElementById('attendance-form').addEventListener('submit', function(e
 
     const formData = new FormData(this);
     const submission = {
-        timestamp: new Date().toLocaleString('ja-JP')
+        timestamp: new Date().toLocaleString('ja-JP'),
+        items: {},
+        title: currentConfig.title
     };
 
     currentConfig.fields.forEach(field => {
-        submission[field.label] = formData.get(field.id);
+        submission.items[field.label] = formData.get(field.id);
+        submission[field.label] = formData.get(field.id); // Keep compatibility with local storage format
     });
 
     saveData(submission);
@@ -89,10 +113,21 @@ function getDataKey() {
 }
 
 function saveData(data) {
+    // Local save
     const key = getDataKey();
     let existingData = JSON.parse(localStorage.getItem(key) || '[]');
     existingData.push(data);
     localStorage.setItem(key, JSON.stringify(existingData));
+
+    // GAS Save
+    if (currentConfig.gasUrl) {
+        fetch(currentConfig.gasUrl, {
+            method: 'POST',
+            mode: 'no-cors', // GAS web apps often require no-cors for simple POST
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        }).catch(err => console.error('GAS Save failed:', err));
+    }
 }
 
 function showSuccess() {
@@ -187,10 +222,26 @@ function populateFilterOptions() {
     updateSelect(responseSelect, currentConfig.fields.find(f => f.id === 'attendance').options);
 }
 
-function renderTable(targetTitle) {
+async function renderTable(targetTitle) {
     const title = targetTitle || currentConfig.title;
     const key = `kyudo_attendance_${title}`;
-    const data = JSON.parse(localStorage.getItem(key) || '[]');
+    let data = JSON.parse(localStorage.getItem(key) || '[]');
+
+    // Fetch from GAS if available
+    if (currentConfig.gasUrl) {
+        try {
+            const response = await fetch(`${currentConfig.gasUrl}?title=${encodeURIComponent(title)}`);
+            const remoteData = await response.json();
+            if (Array.isArray(remoteData)) {
+                data = remoteData;
+                // Cache to local
+                localStorage.setItem(key, JSON.stringify(data));
+            }
+        } catch (err) {
+            console.error('GAS fetch failed:', err);
+        }
+    }
+
     const tbody = document.getElementById('attendance-data-body');
     const theadRow = document.querySelector('#tab-data table thead tr');
 
@@ -258,6 +309,7 @@ function populateConfigInputs() {
     document.getElementById('config-grades').value = getOptions('grade');
     document.getElementById('config-genders').value = getOptions('gender');
     document.getElementById('config-attendance').value = getOptions('attendance');
+    document.getElementById('config-gas-url').value = currentConfig.gasUrl || '';
 }
 
 function saveConfig() {
@@ -285,6 +337,21 @@ function saveConfig() {
     }
 
     localStorage.setItem('kyudo_config', JSON.stringify(currentConfig));
+
+    const gasUrl = document.getElementById('config-gas-url').value.trim();
+    currentConfig.gasUrl = gasUrl;
+    localStorage.setItem('kyudo_config', JSON.stringify(currentConfig));
+
+    // Update GAS Config if URL exists
+    if (gasUrl) {
+        fetch(gasUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'config', config: currentConfig })
+        }).catch(err => console.error('GAS Config push failed:', err));
+    }
+
     alert('設定を保存しました。');
     updateHistoryListUI();
     populateFilterOptions();
