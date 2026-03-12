@@ -11,6 +11,11 @@
 </head>
 <body>
     <div class="container">
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="loading-overlay" style="display: none;">
+            <div class="spinner"></div>
+            <p>同期中...</p>
+        </div>
         <!-- Form View -->
         <div id="form-view" class="card">
             <h1 id="app-title">弓道部 行事出席確認</h1>
@@ -56,6 +61,10 @@
                         <select id="survey-history" onchange="switchSurveyView()" style="padding: 8px; border-radius: 4px; border: 1px solid var(--border-color); font-size: 14px; min-width: 200px;">
                             <!-- History options will be injected here -->
                         </select>
+                        <div id="survey-status-info" style="margin-top: 5px; display: flex; align-items: center; gap: 8px;">
+                            <span id="active-badge" class="badge" style="display: none;">実施中</span>
+                            <button id="set-active-btn" onclick="setActiveSurvey()" style="display: none; width: auto; font-size: 11px; padding: 4px 10px; background: var(--primary-color);" title="このアンケートを回答者に公開します">これを実施中に設定</button>
+                        </div>
                     </div>
                 </div>
                 

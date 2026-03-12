@@ -11,6 +11,16 @@ const DEFAULT_CONFIG = {
     gasUrl: 'https://script.google.com/macros/s/AKfycbyXFOTQ1FuZcYiqM6_ozecbY-y3elTbcO74zkNKiPHG8Jh_pUIyFYKcC1Ndq3TNbpqmaw/exec' // URL for Google Apps Script synchronization
 };
 
+function showLoading() {
+    const loader = document.getElementById('loading-overlay');
+    if (loader) loader.style.display = 'flex';
+}
+
+function hideLoading() {
+    const loader = document.getElementById('loading-overlay');
+    if (loader) loader.style.display = 'none';
+}
+
 let currentConfig = JSON.parse(localStorage.getItem('kyudo_config')) || DEFAULT_CONFIG;
 
 // Force inject the specific URL if none exists or if it's currently using the placeholder
@@ -27,8 +37,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function syncConfigFromGAS() {
     if (!currentConfig.gasUrl) return;
     updateSyncStatus('同期中...', '#666');
+    showLoading();
     try {
-        // Add cache buster to avoid getting stale results
         const cacheBuster = `&_cb=${Date.now()}`;
         const response = await fetch(`${currentConfig.gasUrl}?action=getConfig${cacheBuster}`);
         const remoteConfig = await response.json();
@@ -37,15 +47,17 @@ async function syncConfigFromGAS() {
             currentConfig = remoteConfig;
             localStorage.setItem('kyudo_config', JSON.stringify(currentConfig));
             updateSyncStatus('最新の状態です', '#2e7d32');
+            hideLoading();
             return true;
         } else {
-            // Not necessarily a failure if it's the first time
             updateSyncStatus('同期済み（クラウド設定なし）', '#666');
+            hideLoading();
             return true; 
         }
     } catch (err) {
         console.error('Failed to sync config:', err);
         updateSyncStatus('同期エラー', '#f44336');
+        hideLoading();
         return false;
     }
 }
@@ -69,13 +81,20 @@ async function testConnection() {
             resultEl.textContent = '✅ 接続成功！';
             resultEl.style.color = '#2e7d32';
         } else {
-            resultEl.textContent = '❌ 応答が不正です';
+            console.log('Unexpected response:', data);
+            if (Array.isArray(data)) {
+                resultEl.textContent = '❌ 旧バージョンのスクリプトです（新しくデプロイしてください）';
+            } else {
+                resultEl.textContent = '❌ 応答が不正です（GASの設定を確認してください）';
+            }
             resultEl.style.color = '#f44336';
         }
     } catch (err) {
         console.error('Connection test failed:', err);
-        resultEl.textContent = `❌ 接続失敗: ${err.message}`;
+        resultEl.textContent = `❌ 接続失敗: ${err.message} (URLが正しいか確認してください)`;
         resultEl.style.color = '#f44336';
+    } finally {
+        hideLoading();
     }
 }
 
@@ -183,6 +202,7 @@ async function saveData(data) {
     if (currentConfig.gasUrl) {
         const statusEl = document.getElementById('submission-sync-status');
         if (statusEl) statusEl.textContent = 'クラウドへ送信中...';
+        showLoading();
         
         try {
             const response = await fetch(currentConfig.gasUrl, {
@@ -190,8 +210,6 @@ async function saveData(data) {
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Use text/plain to avoid CORS preflight in some environments
                 body: JSON.stringify(data)
             });
-            // Note: Since GAS redirects, a successful fetch results in an 'opaque' response if no-cors is used,
-            // or a transparent one if CORS is allowed. Here we just assume it worked if no exception.
             if (statusEl) {
                 statusEl.textContent = 'クラウド同期完了';
                 statusEl.style.color = '#2e7d32';
@@ -202,6 +220,8 @@ async function saveData(data) {
                 statusEl.textContent = 'クラウド同期失敗（オフライン保存済）';
                 statusEl.style.color = '#f44336';
             }
+        } finally {
+            hideLoading();
         }
     }
 }
@@ -244,15 +264,70 @@ function updateHistoryListUI() {
     history.forEach(title => {
         const opt = document.createElement('option');
         opt.value = title;
-        opt.textContent = title;
-        if (title === currentConfig.title) opt.selected = true;
+        opt.textContent = (title === currentConfig.title) ? `【実施中】${title}` : title;
+        opt.selected = (title === currentConfig.title);
         select.appendChild(opt);
     });
+
+    updateSurveyStatusInfo();
+}
+
+function updateSurveyStatusInfo() {
+    const list = document.getElementById('survey-history');
+    const selectedTitle = list.value;
+    const activeBadge = document.getElementById('active-badge');
+    const setActiveBtn = document.getElementById('set-active-btn');
+
+    if (selectedTitle === currentConfig.title) {
+        activeBadge.style.display = 'inline-block';
+        setActiveBtn.style.display = 'none';
+    } else {
+        activeBadge.style.display = 'none';
+        setActiveBtn.style.display = 'inline-block';
+    }
 }
 
 function switchSurveyView() {
     const selectedTitle = document.getElementById('survey-history').value;
+    updateSurveyStatusInfo();
     renderTable(selectedTitle);
+}
+
+async function setActiveSurvey() {
+    const selectedTitle = document.getElementById('survey-history').value;
+    if (!selectedTitle) return;
+
+    if (!confirm(`「${selectedTitle}」を現在実施中のアンケートとして公開しますか？`)) return;
+
+    // To properly "set active", we need the config for that survey.
+    // However, we only store data by title. If we switch title, we're essentially
+    // changing the current title. The fields and other settings remain the same.
+    currentConfig.title = selectedTitle;
+    
+    showLoading();
+    try {
+        localStorage.setItem('kyudo_config', JSON.stringify(currentConfig));
+        
+        if (currentConfig.gasUrl) {
+            updateSyncStatus('クラウド設定更新中...', '#666');
+            await fetch(currentConfig.gasUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ type: 'config', config: currentConfig })
+            });
+            updateSyncStatus('同期完了', '#2e7d32');
+        }
+        
+        alert('実施中のアンケートを切り替えました。');
+        renderForm();
+        updateHistoryListUI();
+        renderTable();
+    } catch (err) {
+        console.error('Failed to set active survey:', err);
+        alert('切り替えに失敗しました。');
+    } finally {
+        hideLoading();
+    }
 }
 
 function showTab(tabName) {
@@ -305,6 +380,7 @@ async function renderTable(targetTitle) {
 
     // Fetch from GAS if available
     if (currentConfig.gasUrl) {
+        showLoading();
         try {
             const cacheBuster = `&_cb=${Date.now()}`;
             const response = await fetch(`${currentConfig.gasUrl}?title=${encodeURIComponent(title)}${cacheBuster}`);
@@ -316,7 +392,8 @@ async function renderTable(targetTitle) {
             }
         } catch (err) {
             console.error('GAS fetch failed:', err);
-            // Fallback to local data is already in 'data' variable
+        } finally {
+            hideLoading();
         }
     }
 
@@ -419,6 +496,7 @@ function saveConfig() {
     // Update GAS Config if URL exists
     if (gasUrl) {
         updateSyncStatus('設定をアップロード中...', '#666');
+        showLoading();
         fetch(gasUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -432,6 +510,9 @@ function saveConfig() {
             console.error('GAS Config push failed:', err);
             updateSyncStatus('同期エラー', '#f44336');
             alert('設定は保存されましたが、クラウドとの同期に失敗しました。');
+        })
+        .finally(() => {
+            hideLoading();
         });
     } else {
         alert('設定を保存しました。');
