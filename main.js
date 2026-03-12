@@ -204,7 +204,7 @@ document.getElementById('attendance-form').addEventListener('submit', function(e
 
     const formData = new FormData(this);
     const submission = {
-        timestamp: new Date().toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }),
+        timestamp: formatDate(new Date()),
         items: {},
         title: currentConfig.title
     };
@@ -260,6 +260,20 @@ async function saveData(data) {
 function showSuccess() {
     document.getElementById('attendance-form').style.display = 'none';
     document.getElementById('success-message').style.display = 'flex';
+}
+
+// Utility Functions
+function showLoading() { document.getElementById('loading-overlay').style.display = 'flex'; }
+function hideLoading() { document.getElementById('loading-overlay').style.display = 'none'; }
+
+function formatDate(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    const h = String(date.getHours()).padStart(2, '0');
+    const i = String(date.getMinutes()).padStart(2, '0');
+    const s = String(date.getSeconds()).padStart(2, '0');
+    return `${y}/${m}/${d} ${h}:${i}:${s}`;
 }
 
 // Admin Logic
@@ -489,11 +503,21 @@ async function renderTable(targetTitle) {
     tbody.innerHTML = '';
     filteredData.reverse().forEach(item => {
         const row = document.createElement('tr');
-        let cols = `<td>${item.timestamp}</td>`;
+        
+        // Timestamp cell
+        const timeTd = document.createElement('td');
+        timeTd.setAttribute('data-label', '日時');
+        timeTd.textContent = item.timestamp;
+        row.appendChild(timeTd);
+
+        // Dynamic fields cells
         currentConfig.fields.forEach(field => {
-            cols += `<td>${item[field.label] || '-'}</td>`;
+            const td = document.createElement('td');
+            td.setAttribute('data-label', field.label);
+            td.textContent = item[field.label] || '-';
+            row.appendChild(td);
         });
-        row.innerHTML = cols;
+        
         tbody.appendChild(row);
     });
 
