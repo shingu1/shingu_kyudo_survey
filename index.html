@@ -50,20 +50,21 @@
             <!-- Sync Status Indicator -->
             <div id="sync-status-bar" style="background: #f0f0f0; padding: 5px 15px; font-size: 11px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd;">
                 <span id="sync-message">同期ステータス: 待機中</span>
-                <button onclick="manualSync()" id="sync-now-btn" style="background: #666; font-size: 10px; padding: 2px 8px; width: auto; height: auto; margin:0;">今すぐ同期</button>
             </div>
 
             <div id="tab-data" class="tab-content">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                     <h2>出席データ一覧</h2>
                     <div class="history-container">
-                        <label style="font-size: 12px; color: #666; display: block; margin-bottom: 2px;">過去のアンケートを選択</label>
-                        <select id="survey-history" onchange="switchSurveyView()" style="padding: 8px; border-radius: 4px; border: 1px solid var(--border-color); font-size: 14px; min-width: 200px;">
-                            <!-- History options will be injected here -->
-                        </select>
-                        <div id="survey-status-info" style="margin-top: 5px; display: flex; align-items: center; gap: 8px;">
-                            <span id="active-badge" class="badge" style="display: none;">実施中</span>
-                            <button id="set-active-btn" onclick="setActiveSurvey()" style="display: none; width: auto; font-size: 11px; padding: 4px 10px; background: var(--primary-color);" title="このアンケートを回答者に公開します">これを実施中に設定</button>
+                        <div class="history-controls">
+                            <label for="survey-history">実施するアンケートを選択:</label>
+                            <div class="history-select-wrapper">
+                                <select id="survey-history" onchange="switchSurveyView()" style="padding: 8px; border-radius: 4px; border: 1px solid var(--border-color); font-size: 14px; min-width: 200px;">
+                                    <!-- History options will be injected here -->
+                                </select>
+                                <span id="active-badge" class="badge" style="display: none;">実施中</span>
+                            </div>
+                            <button id="set-active-btn" class="btn-success" onclick="setActiveSurvey()" style="display: none; width: auto; font-size: 11px; padding: 4px 10px;" title="このアンケートを回答者に公開します">これを実施中に設定</button>
                         </div>
                     </div>
                 </div>

@@ -133,14 +133,10 @@ function updateSyncStatus(msg, color) {
 }
 
 async function manualSync() {
-    const success = await syncConfigFromGAS();
-    if (success) {
-        renderForm();
-        renderTable();
-        alert('最新の設定とデータを同期しました。');
-    } else {
-        alert('同期に失敗しました。GASの設定とURLを確認してください。');
-    }
+    // Manual sync logic is replaced by background polling
+    await syncConfigFromGAS();
+    renderForm();
+    renderTable();
 }
 
 function renderForm() {
@@ -208,7 +204,7 @@ document.getElementById('attendance-form').addEventListener('submit', function(e
 
     const formData = new FormData(this);
     const submission = {
-        timestamp: new Date().toLocaleString('ja-JP'),
+        timestamp: new Date().toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }),
         items: {},
         title: currentConfig.title
     };
@@ -506,10 +502,30 @@ async function renderTable(targetTitle) {
     }
 }
 
-function clearData() {
-    if (confirm(`「${currentConfig.title}」のデータを全て削除してもよろしいですか？`)) {
-        localStorage.removeItem(getDataKey());
-        renderTable();
+async function clearData() {
+    if (confirm(`「${currentConfig.title}」のデータを全て（クラウド上も含め）削除してもよろしいですか？`)) {
+        showLoading();
+        try {
+            // Local clear
+            localStorage.removeItem(getDataKey());
+            
+            // GAS clear
+            if (currentConfig.gasUrl) {
+                await fetch(currentConfig.gasUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ type: 'clearData', title: currentConfig.title })
+                });
+            }
+            
+            renderTable();
+            alert('データをクリアしました。');
+        } catch (err) {
+            console.error('Failed to clear data:', err);
+            alert('データのクリアに失敗しました。');
+        } finally {
+            hideLoading();
+        }
     }
 }
 
