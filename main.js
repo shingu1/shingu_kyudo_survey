@@ -280,7 +280,7 @@ async function openAdminModal() {
     await renderTable();
     populateConfigInputs();
     hideLoading();
-    modal.style.display = 'flex';
+    modal.style.display = 'block';
 }
 
 async function updateHistoryListUI() {
