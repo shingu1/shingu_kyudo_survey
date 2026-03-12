@@ -267,23 +267,41 @@ document.getElementById('open-admin').addEventListener('click', function() {
     }
 });
 
-function openAdminModal() {
+async function openAdminModal() {
     const modal = document.getElementById('admin-modal');
-    updateHistoryListUI();
+    showLoading();
+    await updateHistoryListUI();
     populateFilterOptions();
-    renderTable();
+    await renderTable();
     populateConfigInputs();
+    hideLoading();
     modal.style.display = 'flex';
 }
 
-function updateHistoryListUI() {
-    const history = JSON.parse(localStorage.getItem('kyudo_titles_list') || '[]');
+async function updateHistoryListUI() {
     const select = document.getElementById('survey-history');
+    if (!select) return;
+
+    let history = JSON.parse(localStorage.getItem('kyudo_titles_list') || '[]');
     
-    // Ensure current title is in history if it's not empty
+    // Fetch from GAS if available
+    if (currentConfig.gasUrl) {
+        try {
+            const cacheBuster = `&_cb=${Date.now()}`;
+            const response = await fetch(`${currentConfig.gasUrl}?action=getHistory${cacheBuster}`);
+            const remoteHistory = await response.json();
+            if (Array.isArray(remoteHistory)) {
+                history = remoteHistory;
+                localStorage.setItem('kyudo_titles_list', JSON.stringify(history));
+            }
+        } catch (err) {
+            console.error('Failed to fetch remote history:', err);
+        }
+    }
+
+    // Ensure current title is in history
     if (currentConfig.title && !history.includes(currentConfig.title)) {
         history.push(currentConfig.title);
-        localStorage.setItem('kyudo_titles_list', JSON.stringify(history));
     }
 
     select.innerHTML = '';
